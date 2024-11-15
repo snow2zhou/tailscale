@@ -192,7 +192,7 @@ func TestRunDerpProbeNodePair(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	err = runDerpProbeNodePair(ctx, &tailcfg.DERPNode{Name: "c1"}, &tailcfg.DERPNode{Name: "c2"}, c1, c2, 100_000_000)
+	err = runDerpProbeNodePairOnce(ctx, &tailcfg.DERPNode{Name: "c1"}, &tailcfg.DERPNode{Name: "c2"}, c1, c2, 100_000_000)
 	if err != nil {
 		t.Error(err)
 	}

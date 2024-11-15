@@ -288,6 +288,22 @@ func (p *Probe) loop() {
 		return
 	}
 
+	if p.interval < 0 {
+		// Probe function is going to run continuously.
+		for {
+			p.run()
+			// Wait and then retry if probe fails. We use the inverse of the
+			// configured negative interval as our sleep period.
+			// TODO(percy):implement exponential backoff.
+			select {
+			case <-time.After(-1 * p.interval):
+				p.run()
+			case <-p.ctx.Done():
+				return
+			}
+		}
+	}
+
 	p.tick = p.prober.newTicker(p.interval)
 	defer p.tick.Stop()
 	for {
@@ -323,9 +339,13 @@ func (p *Probe) run() (pi ProbeInfo, err error) {
 			p.recordEnd(err)
 		}
 	}()
-	timeout := time.Duration(float64(p.interval) * 0.8)
-	ctx, cancel := context.WithTimeout(p.ctx, timeout)
-	defer cancel()
+	ctx := p.ctx
+	if p.interval > 0 {
+		timeout := time.Duration(float64(p.interval) * 0.8)
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
 	err = p.probeClass.Probe(ctx)
 	p.recordEnd(err)
@@ -531,7 +551,8 @@ func (p *Probe) Collect(ch chan<- prometheus.Metric) {
 	if !p.start.IsZero() {
 		ch <- prometheus.MustNewConstMetric(p.mStartTime, prometheus.GaugeValue, float64(p.start.Unix()))
 	}
-	if p.end.IsZero() {
+	// For periodic probes that haven't ended, don't collect probe metrics yet.
+	if p.end.IsZero() && p.interval > 0 {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(p.mEndTime, prometheus.GaugeValue, float64(p.end.Unix()))
