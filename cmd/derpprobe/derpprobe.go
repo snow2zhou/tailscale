@@ -106,7 +106,7 @@ func getOverallStatus(p *prober.Prober) (o overallStatus) {
 			// Do not show probes that have not finished yet.
 			continue
 		}
-		if i.Result {
+		if i.Status == prober.ProbeStatusSucceeded {
 			o.addGoodf("%s: %s", p, i.Latency)
 		} else {
 			o.addBadf("%s: %s", p, i.Error)

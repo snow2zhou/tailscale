@@ -345,6 +345,11 @@ func (p *Probe) run() (pi ProbeInfo, err error) {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
+	} else {
+		// For continuous probes, reset last error
+		p.mu.Lock()
+		p.lastErr = nil
+		p.mu.Unlock()
 	}
 
 	err = p.probeClass.Probe(ctx)
@@ -385,6 +390,16 @@ func (p *Probe) recordEnd(err error) {
 	p.successHist = p.successHist.Next()
 }
 
+// ProbeStatus indicates the status of a probe.
+type ProbeStatus string
+
+const (
+	ProbeStatusUnknown   = "unknown"
+	ProbeStatusRunning   = "running"
+	ProbeStatusFailed    = "failed"
+	ProbeStatusSucceeded = "succeeded"
+)
+
 // ProbeInfo is a snapshot of the configuration and state of a Probe.
 type ProbeInfo struct {
 	Name            string
@@ -394,7 +409,7 @@ type ProbeInfo struct {
 	Start           time.Time
 	End             time.Time
 	Latency         time.Duration
-	Result          bool
+	Status          ProbeStatus
 	Error           string
 	RecentResults   []bool
 	RecentLatencies []time.Duration
@@ -420,6 +435,10 @@ func (pb ProbeInfo) RecentMedianLatency() time.Duration {
 		return 0
 	}
 	return pb.RecentLatencies[len(pb.RecentLatencies)/2]
+}
+
+func (pb ProbeInfo) Continuous() bool {
+	return pb.Interval < 0
 }
 
 // ProbeInfo returns the state of all probes.
@@ -449,9 +468,14 @@ func (probe *Probe) probeInfoLocked() ProbeInfo {
 		Labels:   probe.metricLabels,
 		Start:    probe.start,
 		End:      probe.end,
-		Result:   probe.succeeded,
 	}
-	if probe.lastErr != nil {
+	inf.Status = ProbeStatusUnknown
+	if probe.end.Before(probe.start) {
+		inf.Status = ProbeStatusRunning
+	} else if probe.succeeded {
+		inf.Status = ProbeStatusSucceeded
+	} else if probe.lastErr != nil {
+		inf.Status = ProbeStatusFailed
 		inf.Error = probe.lastErr.Error()
 	}
 	if probe.latency > 0 {
