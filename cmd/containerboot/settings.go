@@ -67,6 +67,7 @@ type settings struct {
 	PodIP               string
 	PodIPv4             string
 	PodIPv6             string
+	PodUID              string
 	HealthCheckAddrPort string
 	EgressSvcsCfgPath   string
 }
@@ -99,6 +100,7 @@ func configFromEnv() (*settings, error) {
 		EnableForwardingOptimizations:         defaultBool("TS_EXPERIMENTAL_ENABLE_FORWARDING_OPTIMIZATIONS", false),
 		HealthCheckAddrPort:                   defaultEnv("TS_HEALTHCHECK_ADDR_PORT", ""),
 		EgressSvcsCfgPath:                     defaultEnv("TS_EGRESS_SERVICES_CONFIG_PATH", ""),
+		PodUID:                                defaultEnv("POD_UID", ""),
 	}
 	podIPs, ok := os.LookupEnv("POD_IPS")
 	if ok {
