@@ -540,13 +540,13 @@ func svcNameBase(s string) string {
 	}
 }
 
-// unusedPort returns a port in range [3000 - 4000). The caller must ensure that
-// usedPorts does not contain all ports in range [3000 - 4000).
+// unusedPort returns a port in range [10000 - 20000). The caller must ensure that
+// usedPorts does not contain all ports in range [10000 - 20000).
 func unusedPort(usedPorts sets.Set[int32]) int32 {
 	foundFreePort := false
 	var suggestPort int32
 	for !foundFreePort {
-		suggestPort = rand.Int32N(maxPorts) + 3000
+		suggestPort = rand.Int32N(maxPorts) + 10000
 		if !usedPorts.Has(suggestPort) {
 			foundFreePort = true
 		}
