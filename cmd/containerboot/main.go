@@ -289,11 +289,15 @@ authLoop:
 		}
 	}
 
+	// Remove any serve config and advertised HTTPS endpoint that may have been set by a previous run of
+	// containerboot, but only if we're providing a new one.
 	if cfg.ServeConfigPath != "" {
-		// Remove any serve config that may have been set by a previous run of
-		// containerboot, but only if we're providing a new one.
+		log.Printf("serve proxy: unsetting previous config")
 		if err := client.SetServeConfig(ctx, new(ipn.ServeConfig)); err != nil {
 			log.Fatalf("failed to unset serve config: %v", err)
+		}
+		if err := kc.storeHTTPSEndpoint(ctx, ""); err != nil {
+			log.Fatalf("failed to update HTTPS endpoint in tailscale state: %v", err)
 		}
 	}
 
@@ -334,10 +338,12 @@ authLoop:
 
 		h             = &healthz{} // http server for the healthz endpoint
 		healthzRunner = sync.OnceFunc(func() { runHealthz(cfg.HealthCheckAddrPort, h) })
+		// triggerWatchServeConfigChanges = sync.OnceFunc(func() {
+		// 	go watchServeConfigChanges(ctx, cfg.ServeConfigPath, certDomainChanged, certDomain, client, kc)
+		// })
+		triggerWatchServeConfigChanges sync.Once
 	)
-	if cfg.ServeConfigPath != "" {
-		go watchServeConfigChanges(ctx, cfg.ServeConfigPath, certDomainChanged, certDomain, client)
-	}
+
 	var nfr linuxfw.NetfilterRunner
 	if isL3Proxy(cfg) {
 		nfr, err = newNetfilterRunner(log.Printf)
@@ -511,8 +517,11 @@ runLoop:
 					resetTimer(false)
 					backendAddrs = newBackendAddrs
 				}
-				if cfg.ServeConfigPath != "" && len(n.NetMap.DNS.CertDomains) != 0 {
-					cd := n.NetMap.DNS.CertDomains[0]
+				if cfg.ServeConfigPath != "" {
+					cd := certDomainFromNetmap(n.NetMap)
+					if cd == "" {
+						cd = kubetypes.ValueNoHTTPS
+					}
 					prev := certDomain.Swap(ptr.To(cd))
 					if prev == nil || *prev != cd {
 						select {
@@ -557,6 +566,12 @@ runLoop:
 					if err := kc.storeDeviceEndpoints(ctx, n.NetMap.SelfNode.Name(), n.NetMap.SelfNode.Addresses().AsSlice()); err != nil {
 						log.Fatalf("storing device IPs and FQDN in Kubernetes Secret: %v", err)
 					}
+				}
+
+				if cfg.ServeConfigPath != "" {
+					triggerWatchServeConfigChanges.Do(func() {
+						go watchServeConfigChanges(ctx, cfg.ServeConfigPath, certDomainChanged, certDomain, client, kc)
+					})
 				}
 
 				if cfg.HealthCheckAddrPort != "" {

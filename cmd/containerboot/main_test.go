@@ -102,6 +102,8 @@ func TestContainerBoot(t *testing.T) {
 	argFile := filepath.Join(d, "args")
 	runningSockPath := filepath.Join(d, "tmp/tailscaled.sock")
 
+	capver := fmt.Sprintf("%d", tailcfg.CurrentCapabilityVersion)
+
 	type phase struct {
 		// If non-nil, send this IPN bus notification (and remember it as the
 		// initial update for any future new watchers, then wait for all the
@@ -453,10 +455,11 @@ func TestContainerBoot(t *testing.T) {
 				{
 					Notify: runningNotify,
 					WantKubeSecret: map[string]string{
-						"authkey":     "tskey-key",
-						"device_fqdn": "test-node.test.ts.net",
-						"device_id":   "myID",
-						"device_ips":  `["100.64.0.1"]`,
+						"authkey":          "tskey-key",
+						"device_fqdn":      "test-node.test.ts.net",
+						"device_id":        "myID",
+						"device_ips":       `["100.64.0.1"]`,
+						"tailscale_capver": capver,
 					},
 				},
 			},
@@ -546,9 +549,10 @@ func TestContainerBoot(t *testing.T) {
 						"/usr/bin/tailscale --socket=/tmp/tailscaled.sock set --accept-dns=false",
 					},
 					WantKubeSecret: map[string]string{
-						"device_fqdn": "test-node.test.ts.net",
-						"device_id":   "myID",
-						"device_ips":  `["100.64.0.1"]`,
+						"device_fqdn":      "test-node.test.ts.net",
+						"device_id":        "myID",
+						"device_ips":       `["100.64.0.1"]`,
+						"tailscale_capver": capver,
 					},
 				},
 			},
@@ -575,10 +579,11 @@ func TestContainerBoot(t *testing.T) {
 				{
 					Notify: runningNotify,
 					WantKubeSecret: map[string]string{
-						"authkey":     "tskey-key",
-						"device_fqdn": "test-node.test.ts.net",
-						"device_id":   "myID",
-						"device_ips":  `["100.64.0.1"]`,
+						"authkey":          "tskey-key",
+						"device_fqdn":      "test-node.test.ts.net",
+						"device_id":        "myID",
+						"device_ips":       `["100.64.0.1"]`,
+						"tailscale_capver": capver,
 					},
 				},
 				{
@@ -593,10 +598,11 @@ func TestContainerBoot(t *testing.T) {
 						},
 					},
 					WantKubeSecret: map[string]string{
-						"authkey":     "tskey-key",
-						"device_fqdn": "new-name.test.ts.net",
-						"device_id":   "newID",
-						"device_ips":  `["100.64.0.1"]`,
+						"authkey":          "tskey-key",
+						"device_fqdn":      "new-name.test.ts.net",
+						"device_id":        "newID",
+						"device_ips":       `["100.64.0.1"]`,
+						"tailscale_capver": capver,
 					},
 				},
 			},
